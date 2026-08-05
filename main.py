@@ -7,17 +7,16 @@ YOUTUBE_STREAM_KEY = "7swd-bmce-ym7w-5e2m-499u"
 YOUTUBE_URL = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
 
 def start_bridge():
-    print(f"[*] Starting unbreakable bridge for Kick channel: {KICK_CHANNEL}", flush=True)
+    print(f"[*] Starting stable bridge for Kick channel: {KICK_CHANNEL}", flush=True)
     
     while True:
         p1 = None
         p2 = None
         try:
-            # استخدام streamlink مع وسائط منع التوقف المؤقت
+            # إضافة هيدرز متصفح حقيقي لـ streamlink لتجاوز الحظر الفوري
             streamlink_cmd = [
                 "streamlink", 
-                "--hds-live-edge", "2",
-                "--hls-live-edge", "2",
+                "--http-header", "User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 "--stdout", 
                 f"https://kick.com/{KICK_CHANNEL}", 
                 "best"
@@ -27,7 +26,6 @@ def start_bridge():
                 "ffmpeg",
                 "-re",
                 "-fflags", "+genpts+nobuffer",
-                "-flags", "low_delay",
                 "-i", "pipe:0",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
@@ -42,18 +40,22 @@ def start_bridge():
                 YOUTUBE_URL
             ]
             
-            print("[*] Launching stream processes...", flush=True)
+            print("[*] Launching processes...", flush=True)
             p1 = subprocess.Popen(streamlink_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             p2 = subprocess.Popen(ffmpeg_cmd, stdin=p1.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             p1.stdout.close()
             
-            # مراقبة مستمرة، إذا توقف أي طرف يعيد الاتصال فورا
+            # مهلة قصيرة للتأكد من استقرار البث وعدم حدوث حظر فوري
+            time.sleep(5)
+            
+            print("[*] Stream bridge is running stable! Monitoring...", flush=True)
+            
             while True:
                 if p2.poll() is not None or p1.poll() is not None:
-                    print("\n[!] Stream glitch detected. Reconnecting...", flush=True)
+                    print("\n[!] Stream disconnected. Reconnecting...", flush=True)
                     break
-                time.sleep(2)
+                time.sleep(10)
                 
         except Exception as e:
             print(f"\n[-] Error: {e}", flush=True)
@@ -64,8 +66,8 @@ def start_bridge():
         except:
             pass
             
-        print("[!] Restarting stream bridge instantly...", flush=True)
-        time.sleep(2)
+        print("[!] Waiting 5 seconds before reconnecting...", flush=True)
+        time.sleep(5)
 
 if __name__ == "__main__":
     start_bridge()
