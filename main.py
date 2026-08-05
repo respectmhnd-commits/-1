@@ -2,7 +2,7 @@ import subprocess
 import time
 import sys
 
-KICK_CHANNEL = "Abo_Khrbaa"
+KICK_CHANNEL = "ABO8ALY"
 YOUTUBE_STREAM_KEY = "7swd-bmce-ym7w-5e2m-499u"
 YOUTUBE_URL = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
 
