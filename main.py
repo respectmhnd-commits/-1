@@ -7,18 +7,27 @@ YOUTUBE_STREAM_KEY = "7swd-bmce-ym7w-5e2m-499u"
 YOUTUBE_URL = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
 
 def start_bridge():
-    print(f"[*] Starting robust streaming bridge for Kick channel: {KICK_CHANNEL}", flush=True)
+    print(f"[*] Starting unbreakable bridge for Kick channel: {KICK_CHANNEL}", flush=True)
     
     while True:
         p1 = None
         p2 = None
         try:
-            streamlink_cmd = ["streamlink", "--stdout", f"https://kick.com/{KICK_CHANNEL}", "best"]
+            # استخدام streamlink مع وسائط منع التوقف المؤقت
+            streamlink_cmd = [
+                "streamlink", 
+                "--hds-live-edge", "2",
+                "--hls-live-edge", "2",
+                "--stdout", 
+                f"https://kick.com/{KICK_CHANNEL}", 
+                "best"
+            ]
             
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-re",
                 "-fflags", "+genpts+nobuffer",
+                "-flags", "low_delay",
                 "-i", "pipe:0",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
@@ -33,31 +42,21 @@ def start_bridge():
                 YOUTUBE_URL
             ]
             
-            print("[*] Launching Streamlink & FFmpeg processes...", flush=True)
+            print("[*] Launching stream processes...", flush=True)
             p1 = subprocess.Popen(streamlink_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            p2 = subprocess.Popen(ffmpeg_cmd, stdin=p1.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            p2 = subprocess.Popen(ffmpeg_cmd, stdin=p1.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             p1.stdout.close()
             
-            print("[*] Stream is LIVE! Monitoring process...", flush=True)
-            
+            # مراقبة مستمرة، إذا توقف أي طرف يعيد الاتصال فورا
             while True:
-                retcode = p2.poll()
-                if retcode is not None:
-                    print(f"\n[!] Warning: FFmpeg process exited with code {retcode}.", flush=True)
+                if p2.poll() is not None or p1.poll() is not None:
+                    print("\n[!] Stream glitch detected. Reconnecting...", flush=True)
                     break
-                
-                # فحص ما إذا كان streamlink قد توقف أيضاً
-                if p1.poll() is not None:
-                    print(f"\n[!] Warning: Streamlink process stopped.", flush=True)
-                    break
-                
-                sys.stdout.write(".")
-                sys.stdout.flush()
-                time.sleep(5)
+                time.sleep(2)
                 
         except Exception as e:
-            print(f"\n[-] Exception caught in bridge loop: {e}", flush=True)
+            print(f"\n[-] Error: {e}", flush=True)
             
         try:
             if p1: p1.kill()
@@ -65,9 +64,8 @@ def start_bridge():
         except:
             pass
             
-        print("\n[!] Re-establishing connection to YouTube in 3 seconds...", flush=True)
-        time.sleep(3)
+        print("[!] Restarting stream bridge instantly...", flush=True)
+        time.sleep(2)
 
 if __name__ == "__main__":
     start_bridge()
-
