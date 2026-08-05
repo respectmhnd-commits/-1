@@ -1,18 +1,21 @@
 import subprocess
 import time
+import sys
 
-# إعدادات البث
 KICK_CHANNEL = "Abo_Khrbaa"
 YOUTUBE_STREAM_KEY = "7swd-bmce-ym7w-5e2m-499u"
 YOUTUBE_URL = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
 
 def start_bridge():
-    print(f"[*] جاري الاتصال ببث قناة Kick: {KICK_CHANNEL}...")
+    print(f"[*] Starting streaming bridge for Kick channel: {KICK_CHANNEL}", flush=True)
     
-    # استخدام streamlink لجلب رابط البث المباشر من كيك بدقة عالية
-    streamlink_cmd = ["streamlink", "--stdout", f"https://kick.com/{KICK_CHANNEL}", "best"]
+    streamlink_cmd = [
+        "streamlink", 
+        "--stdout", 
+        f"https://kick.com/{KICK_CHANNEL}", 
+        "best"
+    ]
     
-    # استخدام ffmpeg لسحب البث وإعادة توجيهه إلى يوتيوب
     ffmpeg_cmd = [
         "ffmpeg",
         "-re",
@@ -31,19 +34,38 @@ def start_bridge():
     ]
     
     while True:
+        p1 = None
+        p2 = None
         try:
-            print("[*] جارٍ تشغيل جسر البث المباشر...")
+            print("[*] Launching Streamlink & FFmpeg processes...", flush=True)
             p1 = subprocess.Popen(streamlink_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             p2 = subprocess.Popen(ffmpeg_cmd, stdin=p1.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             
             p1.stdout.close()
-            p2.wait()
+            
+            print("[*] Stream is LIVE! Monitoring process...", flush=True)
+            
+            while True:
+                retcode = p2.poll()
+                if retcode is not None:
+                    print(f"\n[!] Warning: Stream process died with exit code {retcode}.", flush=True)
+                    break
+                
+                sys.stdout.write(".")
+                sys.stdout.flush()
+                time.sleep(10)
+                
         except Exception as e:
-            print(f"[-] حدث خطأ: {e}")
-        
-        print("[!] انقطع البث أو توقف، إعادة المحاولة خلال 5 ثوانٍ...")
+            print(f"\n[-] Exception caught in bridge loop: {e}", flush=True)
+            
+        try:
+            if p1: p1.kill()
+            if p2: p2.kill()
+        except:
+            pass
+            
+        print("\n[!] Re-establishing bridge connection in 5 seconds...", flush=True)
         time.sleep(5)
 
 if __name__ == "__main__":
     start_bridge()
- 
