@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           pip install --upgrade pip
-          pip install --upgrade streamlink
+          pip install --upgrade yt-dlp
 
       - name: Start Stream Bridge
         run: python3 main.py
