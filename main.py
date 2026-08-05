@@ -7,12 +7,14 @@ YOUTUBE_STREAM_KEY = "7swd-bmce-ym7w-5e2m-499u"
 YOUTUBE_URL = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
 
 def start_bridge():
-    print(f"[*] Starting direct stream extractor for Kick channel: {KICK_CHANNEL}", flush=True)
+    print(f"[*] Starting anti-403 bridge for Kick channel: {KICK_CHANNEL}", flush=True)
     
+    # استخدام yt-dlp مع تفعيل محاكاة المتصفح بالكامل لتجاوز الحظر
     ytdlp_cmd = [
         sys.executable, "-m", "yt_dlp",
         "--no-check-certificates",
         "--geo-bypass",
+        "--extractor-args", "kick:impersonate=True",
         "--get-url",
         f"https://kick.com/{KICK_CHANNEL}"
     ]
@@ -20,21 +22,21 @@ def start_bridge():
     while True:
         p2 = None
         try:
-            print("[*] Fetching direct stream URL...", flush=True)
+            print("[*] Fetching secure stream URL...", flush=True)
             direct_url = subprocess.check_output(ytdlp_cmd, universal_newlines=True).strip()
             
             if not direct_url or "http" not in direct_url:
-                print("[!] Stream is offline or URL not ready. Retrying in 10 seconds...", flush=True)
+                print("[!] Stream URL not found or channel offline. Retrying in 10 seconds...", flush=True)
                 time.sleep(10)
                 continue
 
-            print("[*] URL acquired successfully! Launching FFmpeg...", flush=True)
+            print("[*] Secure URL acquired! Launching FFmpeg...", flush=True)
             
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-re",
                 "-fflags", "+genpts+nobuffer",
-                "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "-i", direct_url,
                 "-c:v", "libx264",
                 "-preset", "veryfast",
@@ -54,19 +56,19 @@ def start_bridge():
             while True:
                 retcode = p2.poll()
                 if retcode is not None:
-                    print(f"\n[!] FFmpeg process ended with code {retcode}. Refreshing link...", flush=True)
+                    print(f"\n[!] FFmpeg ended with code {retcode}. Refreshing...", flush=True)
                     break
                 time.sleep(10)
                 
         except Exception as e:
-            print(f"\n[-] Error in bridge loop: {e}", flush=True)
+            print(f"\n[-] Error: {e}", flush=True)
             
         try:
             if p2: p2.kill()
         except:
             pass
             
-        print("[!] Re-checking stream in 5 seconds...", flush=True)
+        print("[!] Re-checking in 5 seconds...", flush=True)
         time.sleep(5)
 
 if __name__ == "__main__":
