@@ -2,31 +2,40 @@ import subprocess
 import time
 import sys
 
-KICK_CHANNEL = "ABO8ALY"
+KICK_CHANNEL = "ABO8ALYY"
 YOUTUBE_STREAM_KEY = "7swd-bmce-ym7w-5e2m-499u"
 YOUTUBE_URL = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
 
 def start_bridge():
-    print(f"[*] Starting stable bridge for Kick channel: {KICK_CHANNEL}", flush=True)
+    print(f"[*] Starting direct stream extractor for Kick channel: {KICK_CHANNEL}", flush=True)
+    
+    ytdlp_cmd = [
+        sys.executable, "-m", "yt_dlp",
+        "--no-check-certificates",
+        "--geo-bypass",
+        "--get-url",
+        f"https://kick.com/{KICK_CHANNEL}"
+    ]
     
     while True:
-        p1 = None
         p2 = None
         try:
-            # إضافة هيدرز متصفح حقيقي لـ streamlink لتجاوز الحظر الفوري
-            streamlink_cmd = [
-                "streamlink", 
-                "--http-header", "User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "--stdout", 
-                f"https://kick.com/{KICK_CHANNEL}", 
-                "best"
-            ]
+            print("[*] Fetching direct stream URL...", flush=True)
+            direct_url = subprocess.check_output(ytdlp_cmd, universal_newlines=True).strip()
+            
+            if not direct_url or "http" not in direct_url:
+                print("[!] Stream is offline or URL not ready. Retrying in 10 seconds...", flush=True)
+                time.sleep(10)
+                continue
+
+            print("[*] URL acquired successfully! Launching FFmpeg...", flush=True)
             
             ffmpeg_cmd = [
                 "ffmpeg",
                 "-re",
                 "-fflags", "+genpts+nobuffer",
-                "-i", "pipe:0",
+                "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "-i", direct_url,
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-maxrate", "3000k",
@@ -40,33 +49,24 @@ def start_bridge():
                 YOUTUBE_URL
             ]
             
-            print("[*] Launching processes...", flush=True)
-            p1 = subprocess.Popen(streamlink_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            p2 = subprocess.Popen(ffmpeg_cmd, stdin=p1.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
-            p1.stdout.close()
-            
-            # مهلة قصيرة للتأكد من استقرار البث وعدم حدوث حظر فوري
-            time.sleep(5)
-            
-            print("[*] Stream bridge is running stable! Monitoring...", flush=True)
+            p2 = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             while True:
-                if p2.poll() is not None or p1.poll() is not None:
-                    print("\n[!] Stream disconnected. Reconnecting...", flush=True)
+                retcode = p2.poll()
+                if retcode is not None:
+                    print(f"\n[!] FFmpeg process ended with code {retcode}. Refreshing link...", flush=True)
                     break
                 time.sleep(10)
                 
         except Exception as e:
-            print(f"\n[-] Error: {e}", flush=True)
+            print(f"\n[-] Error in bridge loop: {e}", flush=True)
             
         try:
-            if p1: p1.kill()
             if p2: p2.kill()
         except:
             pass
             
-        print("[!] Waiting 5 seconds before reconnecting...", flush=True)
+        print("[!] Re-checking stream in 5 seconds...", flush=True)
         time.sleep(5)
 
 if __name__ == "__main__":
