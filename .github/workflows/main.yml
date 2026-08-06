@@ -1,14 +1,29 @@
-name: XERO_RT_LIVE
+name: Start_Stream
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/30 * * * *'
+    inputs:
+      platform:
+        description: 'Platform (youtube or restream)'
+        required: true
+        default: 'youtube'
+        type: choice
+        options:
+          - youtube
+          - restream
+      channel_name:
+        description: 'Kick Channel Name'
+        required: true
+        type: string
+      stream_key:
+        description: 'Stream Key'
+        required: true
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -16,15 +31,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install --upgrade pip
-          pip install --upgrade yt-dlp[default] curl_cffi
 
-      - name: Start Stream Bridge
-        run: python3 main.py
-
+      - name: Run Stream Script
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          CHANNEL_NAME: ${{ inputs.channel_name }}
+          STREAM_KEY: ${{ inputs.stream_key }}
+        run: |
+          python main.py
